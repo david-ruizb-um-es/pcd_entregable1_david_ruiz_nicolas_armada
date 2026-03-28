@@ -35,9 +35,9 @@ class MiImperio:
         
         for almacen in self.almacenes:
             for repuesto in almacen.catalogo_repuestos:
-                if repuesto.nombre.lower() == nombre_repuesto.lower()#por si se cometiera algun error al escribir:
+                if repuesto.nombre.lower() == nombre_repuesto.lower():#por si se cometiera algun error al escribir:
                     resultados.append((almacen.nombre, repuesto))
-         return resultados
+        return resultados
 
     def adquirir_repuesto(self, nave, nombre_repuesto: str, cantidad_solicitada: int):
         """Permite a un comandante adquirir un repuesto para su nave."""
@@ -196,3 +196,75 @@ class Repuesto:
 
 
 
+
+# CÓDIGO DE PRUEBA Y GESTIÓN DE EXCEPCIONES
+
+
+if __name__ == "__main__":
+    # Instanciamos el sistema principal
+    imperio = MiImperio()
+
+    # 1. Instanciacion de clases
+    print("Creando almacenes y repuestos")
+    almacen_principal = Almacen("Base Starkiller", "Sistemas Desconocidos")
+    motor = Repuesto("Motor Hiperimpulsor", "Kuat Drive Yards", 5, 25000.0)
+    escudo = Repuesto("Generador Deflector", "Sienar Fleet Systems", 2, 15000.0)
+
+    almacen_principal.agregar_repuesto(motor)
+    almacen_principal.agregar_repuesto(escudo)
+    imperio.registrar_almacen(almacen_principal)
+    print(f"  -> {almacen_principal}")#probamos que vaya el__str__
+
+    print("\nCreando unidades de la flota")
+    # Naves
+    destructor = NaveEstelar("ID-EXEC-01", 1138, "Vengador", ["Motor Hiperimpulsor"], 37000, 2500, Clase.EJECUTOR)
+    estacion = EstacionEspacial("DS-2", 9999, "Estrella de la Muerte II", ["Panel de control"], 1200000, 50000, Ubicacion.ENDOR)
+    caza = CazaEstelar("TIE-IN-01", 7777, "Interceptor TIE", ["Generador Deflector"], 1)
+    imperio.registrar_unidad(destructor)
+    imperio.registrar_unidad(estacion)
+    imperio.registrar_unidad(caza)
+    
+    #imprimimos las naves
+    print(f"  -> {destructor}")
+    print(f"  -> {estacion}")
+    print(f"  -> {caza}")
+
+    # 2. Prueba de flujo normal (operario y comandante)
+    print("\nProbando operaciones normales de stock")
+    # Operario suma stock
+    imperio.actualizar_stock("Base Starkiller", "Motor Hiperimpulsor", 3) 
+    # Comandante adquiere repuesto (quedaban 8, coge 2, deben quedar 6)
+    imperio.adquirir_repuesto(destructor, "Motor Hiperimpulsor", 2)
+
+    # 3. Gestión de Excepciones MUY IMPORTANTE
+    print("\nProbando captura y tratamiento de excepciones")
+
+    #Forzamos StockInsuficienteError
+    try:
+        print("  - Intentando adquirir más escudos de los que hay disponibles...")
+        imperio.adquirir_repuesto(caza, "Generador Deflector", 10)
+    except StockInsuficienteError as e:
+        print(f"{e}")
+
+    #Forzamos RepuestoNoEncontradoError
+    try:
+        print("  - Intentando buscar un repuesto que no existe en el catálogo...")
+        imperio.adquirir_repuesto(destructor, "Cristal Kyber", 1)
+    except RepuestoNoEncontradoError as e:
+        print(f"{e}")
+
+    #Ponemos una ubicacion invalida para que salte el error
+    try:
+        print("  - Intentando crear una Estación Espacial en una ubicación inválida...")
+        estacion_erronea = EstacionEspacial("DS-ERROR", 000, "Estación Falsa", [], 10, 0, "Tatooine")
+    except ValueError as e:
+        print(f"{e}")
+
+    #Intentamos poner un stock negativo
+    try:
+        print("  - Intentando establecer un stock negativo en un repuesto...")
+        escudo.set_cantidad(-5)
+    except ValueError as e:
+        print(f"{e}")
+
+    print("\n--- Pruebas finalizadas con éxito ---")
