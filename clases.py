@@ -11,7 +11,8 @@ class RepuestoNoEncontradoError(Exception):
 class StockInsuficienteError(Exception):
     pass
 
-
+class AlmacenNoEncontradoError(Exception):
+    pass
 
 
 class MiImperio:
@@ -46,7 +47,7 @@ class MiImperio:
         if not resultados:#lanzamos la excepcion si no hay repuesto
             raise RepuestoNoEncontradoError(f"El repuesto '{nombre_repuesto}' no existe.")
 
-        nombre_almacen, repuesto = resultados[0]#ponemos el primero para no calentarnos la cabeza
+        nombre_almacen, repuesto = resultados[0]#ponemos el primero para no calentarnos la cabeza en elegir almacen
 
         if repuesto.get_cantidad() < cantidad_solicitada:#lanzamos la excepcion si no hay stock
             raise StockInsuficienteError(f"Stock de '{nombre_repuesto}' insuficiente. "
@@ -55,7 +56,7 @@ class MiImperio:
         repuesto.set_cantidad(repuesto.get_cantidad() - cantidad_solicitada)
         print(f"La nave '{nave.nombre}' ha adquirido {cantidad_solicitada} unidades de '{nombre_repuesto}' del almacén '{nombre_almacen}'.")
 
-    #el siguiente metodo es para los operarios de almacen
+    #los siguientes 2 metodos son para los operarios de almacen
     def actualizar_stock(self, nombre_almacen: str, nombre_repuesto: str, cantidad_a_sumar: int):
         """Permite a un operario modificar el stock de un repuesto."""
         for almacen in self.almacenes:
@@ -63,12 +64,23 @@ class MiImperio:
                 for repuesto in almacen.catalogo_repuestos:
                     if repuesto.nombre == nombre_repuesto:
                         repuesto.set_cantidad(repuesto.get_cantidad() + cantidad_a_sumar)
-                        print(f"[OPERARIO] Stock actualizado: '{nombre_repuesto}' ahora tiene "
+                        print(f"Stock actualizado: '{nombre_repuesto}' ahora tiene "
                               f"{repuesto.get_cantidad()} unidades en '{nombre_almacen}'.")
                         return
 
-        raise RepuestoNoEncontradoError("Almacen o repuesto no encontrado")
+        raise AlmacenNoEncontradoError("Almacen o repuesto no encontrado")
 
+
+    def registrar_nuevo_repuesto(self, nombre_almacen: str, nuevo_repuesto):
+        """Permite a un operario añadir un nuevo repuesto al catálogo de un almacén."""
+        #llama a la funcion de añadir repuesto del almacen
+        for almacen in self.almacenes:
+            if almacen.nombre.lower() == nombre_almacen.lower():# por si acaso
+                almacen.agregar_repuesto(nuevo_repuesto)
+                print(f"Nuevo repuesto '{nuevo_repuesto.nombre}' añadido exitosamente al almacen '{almacen.nombre}'.")
+                return
+        
+        raise AlmacenNoEncontradoError(f"El almacen '{nombre_almacen}' no existe en el imperio.")
 
 #definimos las enumeraciones
 
@@ -197,14 +209,14 @@ class Repuesto:
 
 
 
-# CÓDIGO DE PRUEBA Y GESTIÓN DE EXCEPCIONES
+#CÓDIGO DE PRUEBA Y GESTIÓN DE EXCEPCIONES
 
 
 if __name__ == "__main__":
-    # Instanciamos el sistema principal
+    #Instanciamos el sistema principal
     imperio = MiImperio()
 
-    # 1. Instanciacion de clases
+    #clases
     print("Creando almacenes y repuestos")
     almacen_principal = Almacen("Base Starkiller", "Sistemas Desconocidos")
     motor = Repuesto("Motor Hiperimpulsor", "Kuat Drive Yards", 5, 25000.0)
@@ -213,7 +225,7 @@ if __name__ == "__main__":
     almacen_principal.agregar_repuesto(motor)
     almacen_principal.agregar_repuesto(escudo)
     imperio.registrar_almacen(almacen_principal)
-    print(f"  -> {almacen_principal}")#probamos que vaya el__str__
+    print(f"  -> {almacen_principal}") # probamos que vaya el __str__
 
     print("\nCreando unidades de la flota")
     # Naves
@@ -225,18 +237,24 @@ if __name__ == "__main__":
     imperio.registrar_unidad(caza)
     
     #imprimimos las naves
-    print(f"  -> {destructor}")
-    print(f"  -> {estacion}")
-    print(f"  -> {caza}")
+    print(f"{destructor}")
+    print(f"{estacion}")
+    print(f"{caza}")
 
-    # 2. Prueba de flujo normal (operario y comandante)
+    #Prueba de flujo normal (operario y comandante)
     print("\nProbando operaciones normales de stock")
-    # Operario suma stock
+    
+    #probamos la funcion de crear repuesto
+    nuevo_canon = Repuesto("Cañón Turboláser", "Sienar Fleet Systems", 10, 50000.0)
+    imperio.registrar_nuevo_repuesto("Base Starkiller", nuevo_canon)
+    
+    #probamos la funcion de actualizar stock
     imperio.actualizar_stock("Base Starkiller", "Motor Hiperimpulsor", 3) 
-    # Comandante adquiere repuesto (quedaban 8, coge 2, deben quedar 6)
+    
+    #adquirimos repuesto
     imperio.adquirir_repuesto(destructor, "Motor Hiperimpulsor", 2)
 
-    # 3. Gestión de Excepciones MUY IMPORTANTE
+    #Gestión de Excepciones MUY IMPORTANTE
     print("\nProbando captura y tratamiento de excepciones")
 
     #Forzamos StockInsuficienteError
@@ -244,27 +262,27 @@ if __name__ == "__main__":
         print("  - Intentando adquirir más escudos de los que hay disponibles...")
         imperio.adquirir_repuesto(caza, "Generador Deflector", 10)
     except StockInsuficienteError as e:
-        print(f"{e}")
+        print(f"    Error capturado: {e}")
 
     #Forzamos RepuestoNoEncontradoError
     try:
         print("  - Intentando buscar un repuesto que no existe en el catálogo...")
         imperio.adquirir_repuesto(destructor, "Cristal Kyber", 1)
     except RepuestoNoEncontradoError as e:
-        print(f"{e}")
+        print(f"    Error capturado: {e}")
 
-    #Ponemos una ubicacion invalida para que salte el error
+    #Ponemos una ubicacion invalida
     try:
         print("  - Intentando crear una Estación Espacial en una ubicación inválida...")
-        estacion_erronea = EstacionEspacial("DS-ERROR", 000, "Estación Falsa", [], 10, 0, "Tatooine")
+        estacion_erronea = EstacionEspacial("DS-ERROR", 0, "Estación Falsa", [], 10, 0, "Tatooine")
     except ValueError as e:
-        print(f"{e}")
+        print(f"    Error capturado: {e}")
 
-    #Intentamos poner un stock negativo
+    # Intentamos poner un stock negativo
     try:
         print("  - Intentando establecer un stock negativo en un repuesto...")
         escudo.set_cantidad(-5)
     except ValueError as e:
-        print(f"{e}")
+        print(f"    Error capturado: {e}")
 
     print("\n--- Pruebas finalizadas con éxito ---")
